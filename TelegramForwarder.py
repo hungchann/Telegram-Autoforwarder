@@ -2,6 +2,7 @@ import time
 import asyncio
 from telethon.sync import TelegramClient
 from telethon import errors
+import re
 
 class TelegramForwarder:
     def __init__(self, api_id, api_hash, phone_number):
@@ -55,12 +56,18 @@ class TelegramForwarder:
                         print(f"Message contains a keyword: {message.text}")
 
                         # Forward the message to the destination channel
-                        await self.client.send_message(destination_channel_id, message.text)
+                        if message.text:
+                            cleaned_text = self.clean_message(message.text)
+                            if cleaned_text:  # Only send if there's content after cleaning
+                                await self.client.send_message(destination_channel_id, cleaned_text)
 
                         print("Message forwarded")
                 else:
                         # Forward the message to the destination channel
-                        await self.client.send_message(destination_channel_id, message.text)
+                        if message.text:
+                            cleaned_text = self.clean_message(message.text)
+                            if cleaned_text:  # Only send if there's content after cleaning
+                                await self.client.send_message(destination_channel_id, cleaned_text)
 
                         print("Message forwarded")
 
@@ -70,6 +77,27 @@ class TelegramForwarder:
 
             # Add a delay before checking for new messages again
             await asyncio.sleep(5)  # Adjust the delay time as needed
+
+    def clean_message(self, text):
+        if not text:
+            return text
+        
+        # Patterns to remove
+        patterns = [
+            r'🐳 \[.*?\]\(https://forms\.gle/.*?\)',
+            r'🐸 \[.*?\]\(https://t\.me/.*?\)',
+            r'\| \[.*?\]\(https://t\.me/.*?\)',
+            r'✅.*?Bot.*?SOL.*?\(https://t\.me/.*?\)', # New pattern to remove SOL bot ads
+            r'https://t\.me/[A-Za-z0-9_]+\?start=[A-Za-z0-9_]+' # Remove bare bot links
+        ]
+        
+        cleaned_text = text
+        for pattern in patterns:
+            cleaned_text = re.sub(pattern, '', cleaned_text)
+        
+        # Remove extra whitespace and newlines
+        cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+        return cleaned_text
 
 
 # Function to read credentials from file
